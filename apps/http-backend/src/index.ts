@@ -2,26 +2,35 @@ import express from "express"
 import jwt from "jsonwebtoken"
 import { z } from "zod"
 import bcrypt from "bcrypt"
-import { JWT_SECRET } from "./config";
+import { JWT_SECRET } from "@repo/backend-common/config"
 import { middleware } from "./middleware";
+import { CreateUserSchema, SigninSchema, CreateRoomSchema } from "@repo/common/types"
 
 const app = express();
 
 app.post("/signup", async (req, res) => {
-    const requiredbody = z.object({
-        email: z.string().email(),
-        password: z.string().min(8)
-    })
+    // const requiredbody = z.object({
+    //     email: z.string().email(),
+    //     password: z.string().min(8)
+    // })
 
-    const parsedDataWithSuccess = requiredbody.safeParse(req.body);
-
-    if(!parsedDataWithSuccess.success) {
+    const data = CreateUserSchema.safeParse(req.body);
+    if(!data.success) {
         res.json({
-            message: "Incorrect Format",
-            error: parsedDataWithSuccess.error
+            message: "Incorrect Format"
         })
         return
     }
+
+    // const parsedDataWithSuccess = requiredbody.safeParse(req.body);
+
+    // if(!parsedDataWithSuccess.success) {
+    //     res.json({
+    //         message: "Incorrect Format",
+    //         error: parsedDataWithSuccess.error
+    //     })
+    //     return
+    // }
     
     const { email, password } = req.body;
 
@@ -43,7 +52,13 @@ app.post("/signup", async (req, res) => {
 })
 
 app.post("/signin", async (req, res) => {
-    const { email, password } = req.body;
+    const data = SigninSchema.safeParse(req.body);
+    if(!data.success) {
+        res.json({
+            message: "Incorrect Format"
+        })
+        return
+    }
 
 //    const response = await UserModel.findOne({
 //         email: email
@@ -72,6 +87,14 @@ app.post("/signin", async (req, res) => {
 })
 
 app.post("/room", middleware, async (req, res) => {
+    const data = CreateRoomSchema.safeParse(req.body);
+    if(!data.success) {
+        res.json({
+            message: "Incorrect Format"
+        })
+        return
+    }
+
     res.json({
         roomId: 123
     })
