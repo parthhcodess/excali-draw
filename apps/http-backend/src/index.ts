@@ -1,6 +1,5 @@
 import express from "express"
 import jwt from "jsonwebtoken"
-import { z } from "zod"
 import bcrypt from "bcrypt"
 import { JWT_SECRET } from "@repo/backend-common/config"
 import { middleware } from "./middleware";
@@ -32,11 +31,17 @@ app.post("/signup", async (req, res) => {
     //     return
     // }
     
-    const { email, password } = req.body;
+    const { email, password, name } = data.data;
 
     let errorThrown = false;
     try {
         const hashedPassword = await bcrypt.hash(password, 5)
+
+        // await UserModel.create({
+        //     email: email,
+        //     password: hashedPassword,
+        //     name: name
+        // });
     } catch (error) {
         res.status(403).json({
             message: "Incorrect Password",
@@ -64,13 +69,15 @@ app.post("/signin", async (req, res) => {
 //         email: email
 //     })
 
+    const { password } = data.data
+
     if(!response) {
         res.status(403).json({
             message: "User does not exist"
         })
     }
 
-    const passwordMatch = await bcrypt.compare(password, response.password);
+    const passwordMatch = await bcrypt.compare(password , response.password);
 
     if(passwordMatch) {
         const token = jwt.sign({
@@ -94,7 +101,7 @@ app.post("/room", middleware, async (req, res) => {
         })
         return
     }
-
+    
     res.json({
         roomId: 123
     })
