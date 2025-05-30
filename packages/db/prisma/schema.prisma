@@ -10,10 +10,10 @@ datasource db {
 
 model User {
   id         String       @id @default(uuid())
-  email      String
+  email      String       @unique
   password   String
-  name       String
-  photo      String
+  name       String?
+  photo      String?
   rooms      Room[]
   chats      Chat[]
 }
@@ -35,3 +35,4 @@ model Chat {
   room      Room       @relation(fields: [roomId], references: [id])
   user      User       @relation(fields: [userId], references: [id])
 }
+

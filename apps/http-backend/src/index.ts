@@ -2,10 +2,12 @@ import express from "express"
 import jwt from "jsonwebtoken"
 import bcrypt from "bcrypt"
 import { JWT_SECRET } from "@repo/backend-common/config"
-import { middleware } from "./middleware";
+import { middleware } from "./middleware.js";
 import { CreateUserSchema, SigninSchema, CreateRoomSchema } from "@repo/common/types"
+import { prismaClient } from "@repo/db/client"
 
 const app = express();
+app.use(express.json())
 
 app.post("/signup", async (req, res) => {
     // const requiredbody = z.object({
@@ -13,8 +15,8 @@ app.post("/signup", async (req, res) => {
     //     password: z.string().min(8)
     // })
 
-    const data = CreateUserSchema.safeParse(req.body);
-    if(!data.success) {
+    const parsedData = CreateUserSchema.safeParse(req.body);
+    if(!parsedData.success) {
         res.json({
             message: "Incorrect Format"
         })
@@ -30,21 +32,24 @@ app.post("/signup", async (req, res) => {
     //     })
     //     return
     // }
-    
-    const { email, password, name } = data.data;
 
     let errorThrown = false;
     try {
-        const hashedPassword = await bcrypt.hash(password, 5)
+        const hashedPassword = await bcrypt.hash(parsedData.data.password, 5)
 
-        // await UserModel.create({
-        //     email: email,
-        //     password: hashedPassword,
-        //     name: name
-        // });
+        const user = await prismaClient.user.create({
+            data: {
+                email: parsedData.data?.email,
+                password: hashedPassword,
+                name: parsedData.data.name
+            }
+        })
+        res.json({
+            userId: user.id
+        })
     } catch (error) {
         res.status(403).json({
-            message: "Incorrect Password",
+            message: "User already exists",
         })
         errorThrown = true;
     }
@@ -57,31 +62,34 @@ app.post("/signup", async (req, res) => {
 })
 
 app.post("/signin", async (req, res) => {
-    const data = SigninSchema.safeParse(req.body);
-    if(!data.success) {
+    const parsedData = SigninSchema.safeParse(req.body);
+    if(!parsedData.success) {
         res.json({
             message: "Incorrect Format"
         })
         return
     }
 
-//    const response = await UserModel.findOne({
-//         email: email
-//     })
+   const response = await prismaClient.user.findFirst({
+        where: {
+            email: parsedData.data.email, 
+        }
+    })
 
-    const { password } = data.data
+    const { password } = parsedData.data
 
     if(!response) {
         res.status(403).json({
             message: "User does not exist"
         })
+        return
     }
 
-    const passwordMatch = await bcrypt.compare(password , response.password);
+    const passwordMatch = await bcrypt.compare(password , parsedData.data.password);
 
     if(passwordMatch) {
         const token = jwt.sign({
-            id: response._id.toString()
+            userId: response?.id.toString()
         }, JWT_SECRET )
         res.json({
             token: token
@@ -94,17 +102,33 @@ app.post("/signin", async (req, res) => {
 })
 
 app.post("/room", middleware, async (req, res) => {
-    const data = CreateRoomSchema.safeParse(req.body);
-    if(!data.success) {
+    const parsedData = CreateRoomSchema.safeParse(req.body);
+    if(!parsedData.success) {
         res.json({
             message: "Incorrect Format"
         })
         return
     }
+
+    const userId = req.userId || ""
+
+    try {
+        const room = await prismaClient.room.create({
+        data: {
+            slug: parsedData.data.roomname,
+            adminId: userId 
+        }
+      })
     
-    res.json({
-        roomId: 123
-    })
+      res.json({
+          roomId: room.id
+      })
+    } catch (error) {
+        res.status(411).json({
+            message: "Room already exists"
+        })
+    }
+    
 })
 
 app.listen(3001)
